@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
 
+from .querysets import RecipeQuerySet, ShoppingCartQuerySet, FavoriteQuerySet
+
 User = get_user_model()
 
 
@@ -67,22 +69,26 @@ class BaseUserRecipeRelation(models.Model):
 
 
 class Favorite(BaseUserRecipeRelation):
+    objects = FavoriteQuerySet.as_manager()
+
     class Meta:
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранные рецепты'
         default_related_name = 'favorites'
-        constraints = [
+        constraints = (
             models.UniqueConstraint(
                 fields=('user', 'recipe'),
                 name='unique_favorite'
-            )
-        ]
+            ),
+        )
 
     def __str__(self):
         return f'{self.user.username} -> {self.recipe.name}'
 
 
 class ShoppingCart(BaseUserRecipeRelation):
+    objects = ShoppingCartQuerySet.as_manager()
+
     class Meta:
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
@@ -141,6 +147,8 @@ class Recipe(models.Model):
         editable=False,
         verbose_name='Слаг короткой ссылки'
     )
+
+    objects = RecipeQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'Рецепт'

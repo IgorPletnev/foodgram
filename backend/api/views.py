@@ -1,13 +1,11 @@
 from rest_framework import viewsets, status, permissions
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
-from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db.models import Exists, OuterRef
 from django.http import FileResponse
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -17,8 +15,7 @@ from recipes.models import (
     Recipe,
     Favorite,
     ShoppingCart,
-    Subscription
-)
+    )
 from .filters import RecipeFilter
 from .serializers import (
     TagSerializer,
@@ -33,41 +30,38 @@ from .serializers import (
     PublicUserCreateSerializer,
     SimpleTokenLoginSerializer,
     SubscriptionSerializer,
-    TokenSerializer
+    FavoriteSerializer,
+    ShoppingCartSerializer,
 )
 from .permissions import IsAuthenticatedAuthorOrReadOnly
 
 User = get_user_model()
 
-
-# ========== Пользователи ==========
-
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
-    """Вьюсет для пользователей (только чтение, кроме подписок и аватара)."""
+    """Вьюсет для пользователей (чтение, подписки, аватар)."""
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+    lookup_field = 'id'
+    lookup_url_kwarg = 'pk'
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context.update({'request': self.request})
         return context
 
-    @action(detail=False, url_path='me')
+    @action(detail=False, url_path='me', permission_classes=(IsAuthenticated,))
     def me(self, request):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
-    @action(detail=False, methods=('put',), url_path='me/avatar')
+    @action(
+        detail=False,
+        methods=('put',),
+        url_path='me/avatar',
+        permission_classes=(IsAuthenticated,)
+    )
     def update_avatar(self, request):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
         user = request.user
         serializer = SetAvatarSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -76,24 +70,24 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             {'avatar': self.get_serializer(user).data.get('avatar')}
         )
 
-    @action(detail=False, methods=('delete',), url_path='me/avatar')
+    @action(
+        detail=False,
+        methods=('delete',),
+        url_path='me/avatar',
+        permission_classes=(IsAuthenticated,)
+    )
     def delete_avatar(self, request):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
-        user = request.user
-        if user.avatar:
-            user.avatar.delete()
-        user.avatar = None
-        user.save()
+        request.user.delete_avatar()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=False, url_path='subscriptions')
+    @action(
+        detail=False,
+        url_path='subscriptions',
+        permission_classes=(IsAuthenticated,)
+    )
     def subscriptions(self, request):
-        if not request.user.is_authenticated:
-            return Response({'results': []}, status=status.HTTP_200_OK)
-        queryset = User.objects.filter(following__user=request.user)
+        author_ids = request.user.following.values_list('author', flat=True)
+        queryset = User.objects.filter(id__in=author_ids)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = UserWithRecipesSerializer(
@@ -105,13 +99,14 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         )
         return Response(serializer.data)
 
-    @action(detail=True, methods=('post',), url_path='subscribe')
+    @action(
+        detail=True,
+        methods=('post',),
+        url_path='subscribe',
+        permission_classes=(IsAuthenticated,)
+    )
     def subscribe(self, request, pk=None):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
-        author = get_object_or_404(User, pk=pk)
+        author = self.get_object()
         serializer = SubscriptionSerializer(
             data={'user': request.user.id, 'author': author.id},
             context={'request': request}
@@ -125,20 +120,15 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-    @action(detail=True, methods=('delete',), url_path='subscribe')
+    @action(
+        detail=True,
+        methods=('delete',),
+        url_path='subscribe',
+        permission_classes=(IsAuthenticated,)
+    )
     def unsubscribe(self, request, pk=None):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
-        user = request.user
-        author = get_object_or_404(User, pk=pk)
-        subscription = Subscription.objects.filter(user=user, author=author)
-        if not subscription.exists():
-            raise ValidationError(
-                {'detail': 'Вы не подписаны на этого пользователя'}
-            )
-        subscription.delete()
+        author = self.get_object()
+        request.user.following.filter(author=author).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -166,10 +156,7 @@ class SimpleTokenLoginView(APIView):
         serializer = SimpleTokenLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
-        # Используем сериализатор для создания токена
-        token_serializer = TokenSerializer(data={'user': user.id})
-        token_serializer.is_valid(raise_exception=True)
-        token = token_serializer.save()
+        token, _ = Token.objects.get_or_create(user=user)
         return Response({'auth_token': token.key})
 
 
@@ -206,21 +193,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
         queryset = Recipe.objects.all()
         user = self.request.user
         if user.is_authenticated:
-            queryset = queryset.annotate(
-                is_favorited=Exists(
-                    Favorite.objects.filter(user=user, recipe=OuterRef('pk'))
-                ),
-                is_in_shopping_cart=Exists(
-                    ShoppingCart.objects.filter(
-                        user=user,
-                        recipe=OuterRef('pk')
-                    )
-                )
-            )
+            queryset = queryset.with_favorite_flag(
+                user
+            ).with_shopping_cart_flag(user)
         return queryset
 
     def get_permissions(self):
-        if self.action in {'update', 'partial_update', 'destroy'}:
+        if self.action in ('update', 'partial_update', 'destroy'):
             return (
                 permissions.IsAuthenticated(),
                 IsAuthenticatedAuthorOrReadOnly()
@@ -250,35 +229,44 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
-    def _handle_relation(self, request, model, already_msg):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
+    def _handle_relation(self, request, serializer_class, model):
         recipe = self.get_object()
         user = request.user
         if request.method == 'POST':
-            _, created = model.objects.get_or_create(user=user, recipe=recipe)
-            if not created:
-                raise ValidationError({'detail': already_msg})
-            serializer = RecipeMinifiedSerializer(
-                recipe, context={'request': request}
+            serializer = serializer_class(
+                data={'user': user.id, 'recipe': recipe.id},
+                context={'request': request}
             )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        # DELETE
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(
+                RecipeMinifiedSerializer(
+                    recipe, context={'request': request}
+                ).data,
+                status=status.HTTP_201_CREATED
+            )
+        
         model.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=('post', 'delete'), url_path='favorite')
+    @action(
+        detail=True,
+        methods=('post', 'delete'),
+        url_path='favorite',
+        permission_classes=(IsAuthenticated,)
+    )
     def favorite(self, request, pk=None):
-        return self._handle_relation(
-            request, Favorite, 'Рецепт уже в избранном'
-        )
+        return self._handle_relation(request, FavoriteSerializer, Favorite)
 
-    @action(detail=True, methods=('post', 'delete'), url_path='shopping_cart')
+    @action(
+        detail=True,
+        methods=('post', 'delete'),
+        url_path='shopping_cart',
+        permission_classes=(IsAuthenticated,)
+    )
     def shopping_cart(self, request, pk=None):
         return self._handle_relation(
-            request, ShoppingCart, 'Рецепт уже в списке покупок'
+            request, ShoppingCartSerializer, ShoppingCart
         )
 
     @action(detail=True, url_path='get-link')
@@ -289,30 +277,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         return Response(serializer.data)
 
-    @action(detail=False, url_path='download_shopping_cart')
+    @action(
+        detail=False,
+        url_path='download_shopping_cart',
+        permission_classes=(IsAuthenticated,)
+    )
     def download_shopping_cart(self, request):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED
-            )
-        user = request.user
-        cart_recipes = ShoppingCart.objects.filter(
-            user=user
-        ).select_related('recipe')
-        ingredients_dict = {}
-        for cart in cart_recipes:
-            for ri in cart.recipe.recipe_ingredients.select_related(
-                'ingredient'
-            ):
-                ing = ri.ingredient
-                key = (ing.id, ing.name, ing.measurement_unit)
-                ingredients_dict[key] = ingredients_dict.get(
-                    key, 0
-                ) + ri.amount
-        lines = [
-            f'{name} ({unit}) — {amount}' for (_, name, unit),
-            amount in ingredients_dict.items()
-        ]
+        ingredients_dict = ShoppingCart.objects.for_user(
+            request.user
+        ).get_ingredients_summary()
+        lines = [f'{name} ({unit}) — {amount}' for (
+            _, name, unit
+        ), amount in ingredients_dict.items()]
         content = '\n'.join(lines)
         return FileResponse(
             content.encode('utf-8'),

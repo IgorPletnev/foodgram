@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
+from rest_framework.validators import UniqueTogetherValidator
 from drf_extra_fields.fields import Base64ImageField
 
 from django.contrib.auth import get_user_model, authenticate
@@ -277,14 +278,19 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
         fields = ('user', 'author')
+        validators = (
+            UniqueTogetherValidator(
+                queryset=Subscription.objects.all(),
+                fields=('user', 'author'),
+                message='Вы уже подписаны'
+            )
+        )
 
     def validate(self, attrs):
-        if attrs['user'] == attrs['author']:
+        user = attrs['user']
+        author = attrs['author']
+        if user == author:
             raise ValidationError({'detail': 'Нельзя подписаться на себя'})
-        if Subscription.objects.filter(
-            user=attrs['user'], author=attrs['author']
-        ).exists():
-            raise ValidationError({'detail': 'Вы уже подписаны'})
         return attrs
 
 
@@ -305,9 +311,35 @@ class SimpleTokenLoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         try:
             user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise ValidationError('Invalid credentials')
+        except User.DoesNotExist as err:
+            raise ValidationError('Неверные учетные данные') from err
         user = authenticate(username=user.username, password=password)
         if not user:
-            raise ValidationError('Invalid credentials')
+            raise ValidationError('Неверные учетные данные')
         return {'user': user}
+    
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ('user', 'recipe')
+        validators = (
+            UniqueTogetherValidator(
+                queryset=Favorite.objects.all(),
+                fields=('user', 'recipe'),
+                message='Рецепт уже в избранном'
+            )
+        )
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShoppingCart
+        fields = ('user', 'recipe')
+        validators = (
+            UniqueTogetherValidator(
+                queryset=ShoppingCart.objects.all(),
+                fields=('user', 'recipe'),
+                message='Рецепт уже в списке покупок'
+            )
+        )
