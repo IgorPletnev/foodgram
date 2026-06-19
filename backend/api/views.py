@@ -1,12 +1,14 @@
 from rest_framework import viewsets, status, permissions
-from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import FileResponse
+from django.shortcuts import get_object_or_404
+from django.views.generic import RedirectView
 from django_filters.rest_framework import DjangoFilterBackend
 
 from recipes.models import (
@@ -15,7 +17,7 @@ from recipes.models import (
     Recipe,
     Favorite,
     ShoppingCart,
-    )
+)
 from .filters import RecipeFilter
 from .serializers import (
     TagSerializer,
@@ -32,13 +34,16 @@ from .serializers import (
     SubscriptionSerializer,
     FavoriteSerializer,
     ShoppingCartSerializer,
+    PasswordChangeSerializer,
 )
 from .permissions import IsAuthenticatedAuthorOrReadOnly
 
 User = get_user_model()
 
+
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """Вьюсет для пользователей (чтение, подписки, аватар)."""
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
@@ -57,36 +62,11 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(
         detail=False,
-        methods=('put',),
-        url_path='me/avatar',
-        permission_classes=(IsAuthenticated,)
-    )
-    def update_avatar(self, request):
-        user = request.user
-        serializer = SetAvatarSerializer(user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(
-            {'avatar': self.get_serializer(user).data.get('avatar')}
-        )
-
-    @action(
-        detail=False,
-        methods=('delete',),
-        url_path='me/avatar',
-        permission_classes=(IsAuthenticated,)
-    )
-    def delete_avatar(self, request):
-        request.user.delete_avatar()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(
-        detail=False,
         url_path='subscriptions',
         permission_classes=(IsAuthenticated,)
     )
     def subscriptions(self, request):
-        author_ids = request.user.following.values_list('author', flat=True)
+        author_ids = request.user.follower.values_list('author', flat=True)
         queryset = User.objects.filter(id__in=author_ids)
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -100,13 +80,44 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
     @action(
-        detail=True,
+        detail=False,
         methods=('post',),
-        url_path='subscribe',
+        url_path='set_password',
         permission_classes=(IsAuthenticated,)
     )
-    def subscribe(self, request, pk=None):
-        author = self.get_object()
+    def set_password(self, request):
+        serializer = PasswordChangeSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserAvatarView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def put(self, request):
+        serializer = SetAvatarSerializer(
+            request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'avatar': UserSerializer(
+            request.user, context={'request': request}
+        ).data.get('avatar')})
+
+    def delete(self, request):
+        request.user.delete_avatar()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserSubscribeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        author = get_object_or_404(User, pk=pk)
         serializer = SubscriptionSerializer(
             data={'user': request.user.id, 'author': author.id},
             context={'request': request}
@@ -120,15 +131,9 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-    @action(
-        detail=True,
-        methods=('delete',),
-        url_path='subscribe',
-        permission_classes=(IsAuthenticated,)
-    )
-    def unsubscribe(self, request, pk=None):
-        author = self.get_object()
-        request.user.following.filter(author=author).delete()
+    def delete(self, request, pk):
+        author = get_object_or_404(User, pk=pk)
+        request.user.follower.filter(author=author).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -153,11 +158,12 @@ class SimpleTokenLoginView(APIView):
     permission_classes = (AllowAny,)
 
     def post(self, request):
-        serializer = SimpleTokenLoginSerializer(data=request.data)
+        serializer = SimpleTokenLoginSerializer(
+            data=request.data, context={'request': request}
+        )
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        token, _ = Token.objects.get_or_create(user=user)
-        return Response({'auth_token': token.key})
+        token_data = serializer.save()
+        return Response(token_data)
 
 
 # ========== Базовый класс для Tag и Ingredient ==========
@@ -166,9 +172,11 @@ class BaseReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
     permission_classes = (AllowAny,)
 
+
 class TagViewSet(BaseReadOnlyViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
+
 
 class IngredientViewSet(BaseReadOnlyViewSet):
     serializer_class = IngredientSerializer
@@ -229,6 +237,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        output_serializer = RecipeSerializer(
+            instance, context={'request': request}
+        )
+        return Response(output_serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
     def _handle_relation(self, request, serializer_class, model):
         recipe = self.get_object()
         user = request.user
@@ -245,7 +270,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 ).data,
                 status=status.HTTP_201_CREATED
             )
-        
+        # DELETE
         model.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -295,3 +320,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
             content_type='text/plain',
             filename='shopping_list.txt'
         )
+
+
+class ShortLinkRedirectView(RedirectView):
+    def get_redirect_url(self, *args, **kwargs):
+        slug = kwargs.get('slug')
+        return f"{settings.FRONTEND_URL}/recipes/{slug}"

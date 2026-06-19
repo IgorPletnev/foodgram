@@ -4,7 +4,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueTogetherValidator
 from drf_extra_fields.fields import Base64ImageField
 
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import (
+    get_user_model,
+    authenticate,
+    update_session_auth_hash,
+)
 from django.urls import reverse
 
 from recipes.fields import AbsoluteUrlImageField
@@ -76,14 +80,13 @@ class UserWithRecipesSerializer(UserSerializer):
 class SetAvatarSerializer(serializers.ModelSerializer):
     """Сериализатор для обновления аватара."""
 
-    avatar = serializers.ImageField()
+    avatar = Base64ImageField()
 
     class Meta:
         model = User
         fields = ('avatar',)
 
     def update(self, instance, validated_data):
-        # Удаляем старый файл аватара, если он есть
         if instance.avatar:
             instance.avatar.delete()
         return super().update(instance, validated_data)
@@ -283,7 +286,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
                 queryset=Subscription.objects.all(),
                 fields=('user', 'author'),
                 message='Вы уже подписаны'
-            )
+            ),
         )
 
     def validate(self, attrs):
@@ -313,10 +316,17 @@ class SimpleTokenLoginSerializer(serializers.Serializer):
             user = User.objects.get(email=email)
         except User.DoesNotExist as err:
             raise ValidationError('Неверные учетные данные') from err
+        
         user = authenticate(username=user.username, password=password)
         if not user:
             raise ValidationError('Неверные учетные данные')
-        return {'user': user}
+        self.context['user'] = user
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context['user']
+        token, _ = Token.objects.get_or_create(user=user)
+        return {'auth_token': token.key}
     
 
 class FavoriteSerializer(serializers.ModelSerializer):
@@ -328,7 +338,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
                 queryset=Favorite.objects.all(),
                 fields=('user', 'recipe'),
                 message='Рецепт уже в избранном'
-            )
+            ),
         )
 
 
@@ -341,5 +351,22 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
                 queryset=ShoppingCart.objects.all(),
                 fields=('user', 'recipe'),
                 message='Рецепт уже в списке покупок'
-            )
+            ),
         )
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField()
+    new_password = serializers.CharField()
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise ValidationError('Неверный пароль')
+        return value
+
+    def save(self, **kwargs):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        update_session_auth_hash(self.context['request'], user)
+        return user

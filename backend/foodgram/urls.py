@@ -2,9 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
 
-from api.views import PublicUserCreateView, SimpleTokenLoginView
+from api.views import SimpleTokenLoginView, ShortLinkRedirectView
 from djoser.views import TokenDestroyView
 from djoser import urls as djoser_urls
 
@@ -16,10 +15,7 @@ auth_urls = [
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('s/<slug:slug>/', RedirectView.as_view(
-        url='/recipes/%(slug)s/'
-    ), name='short-link'),
-    path('api/users/', PublicUserCreateView.as_view(), name='user-create'),
+    path('s/<slug:slug>/', ShortLinkRedirectView.as_view(), name='short-link'),
     path('api/', include('api.urls')),
     path('api/auth/', include(auth_urls)),
 ]

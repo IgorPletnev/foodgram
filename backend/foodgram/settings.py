@@ -121,6 +121,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://kittykaty.ddns.net')
+
 AUTH_USER_MODEL = 'users.User'
 
 CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split()
