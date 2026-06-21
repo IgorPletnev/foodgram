@@ -61,13 +61,4 @@ jobs:
             # Загрузка ингредиентов
             docker compose -f docker-compose.prod.yml exec -T backend python manage.py load_ingredients
             # Создание тегов
-            docker compose -f docker-compose.prod.yml exec -T backend python manage.py shell -c "
-from recipes.models import Tag
-if not Tag.objects.exists():
-    Tag(name='Завтрак', slug='breakfast', color='#E26C2D').save()
-    Tag(name='Обед', slug='lunch', color='#49B64E').save()
-    Tag(name='Ужин', slug='dinner', color='#8775D2').save()
-    print('Tags created')
-else:
-    print('Tags already exist')
-"
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py create_tags
