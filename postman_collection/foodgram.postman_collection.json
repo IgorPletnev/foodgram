@@ -59,7 +59,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{email}},\n    \"username\": {{username}},\n    \"first_name\": \"Вася\",\n    \"last_name\": \"Иванов\",\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{email}}\",\n    \"username\": \"{{username}}\",\n    \"first_name\": \"Вася\",\n    \"last_name\": \"Иванов\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -127,7 +127,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{secondUserEmail}},\n    \"username\": {{secondUserUsername}},\n    \"first_name\": \"Андрей\",\n    \"last_name\": \"Макаревский\",\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{secondUserEmail}}\",\n    \"username\": \"{{secondUserUsername}}\",\n    \"first_name\": \"Андрей\",\n    \"last_name\": \"Макаревский\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -195,7 +195,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{thirdUserEmail}},\n    \"username\": {{thirdUserUsername}},\n    \"first_name\": \"Гордон\",\n    \"last_name\": \"Рамзиков\",\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{thirdUserEmail}}\",\n    \"username\": \"{{thirdUserUsername}}\",\n    \"first_name\": \"Гордон\",\n    \"last_name\": \"Рамзиков\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -264,7 +264,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{email}},\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -330,7 +330,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{secondUserEmail}},\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{secondUserEmail}}\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -859,7 +859,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{email}},\n    \"username\": \"EmailInUse\",\n    \"first_name\": \"Email\",\n    \"last_name\": \"InUse\",\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{email}}\",\n    \"username\": \"EmailInUse\",\n    \"first_name\": \"Email\",\n    \"last_name\": \"InUse\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1171,7 +1171,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{email}},\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1896,7 +1896,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"current_password\": {{password}},\n    \"new_password\": {{newPassword}}\n}",
+									"raw": "{\n    \"current_password\": \"{{password}}\",\n    \"new_password\": \"{{newPassword}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1961,7 +1961,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{email}},\n    \"password\": {{newPassword}}\n}",
+									"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{newPassword}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2023,7 +2023,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"current_password\": {{newPassword}},\n    \"new_password\": {{password}}\n}",
+									"raw": "{\n    \"current_password\": \"{{newPassword}}\",\n    \"new_password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2088,7 +2088,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": {{email}},\n    \"password\": {{password}}\n}",
+									"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2253,7 +2253,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"current_password\": \"wrongPassword\",\n    \"new_password\": {{newPassword}}\n}",
+									"raw": "{\n    \"current_password\": \"wrongPassword\",\n    \"new_password\": \"{{newPassword}}\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -11048,17 +11048,17 @@
 		},
 		{
 			"key": "username",
-			"value": "\"vasya.ivanov\"",
+			"value": "vasya.ivanov",
 			"type": "string"
 		},
 		{
 			"key": "password",
-			"value": "\"MySecretPas$word\"",
+			"value": "MySecretPassword123",
 			"type": "string"
 		},
 		{
 			"key": "email",
-			"value": "\"vivanov@yandex.ru\"",
+			"value": "vivanov@yandex.ru",
 			"type": "string"
 		},
 		{
@@ -11073,7 +11073,7 @@
 		},
 		{
 			"key": "newPassword",
-			"value": "\"thi$Pa$$w0rdW@sCh@nged\"",
+			"value": "NewSecretPassword456",
 			"type": "string"
 		},
 		{
@@ -11088,12 +11088,12 @@
 		},
 		{
 			"key": "secondUserEmail",
-			"value": "\"second_user@email.org\"",
+			"value": "second_user@email.org",
 			"type": "string"
 		},
 		{
 			"key": "secondUserUsername",
-			"value": "\"second-user\"",
+			"value": "second-user",
 			"type": "string"
 		},
 		{
@@ -11103,12 +11103,12 @@
 		},
 		{
 			"key": "thirdUserEmail",
-			"value": "\"third-user@user.ru\"",
+			"value": "third-user@user.ru",
 			"type": "string"
 		},
 		{
 			"key": "thirdUserUsername",
-			"value": "\"third-user-username\"",
+			"value": "third-user-username",
 			"type": "string"
 		}
 	]

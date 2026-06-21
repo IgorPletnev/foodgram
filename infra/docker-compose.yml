@@ -25,8 +25,8 @@ services:
     container_name: foodgram-front
     build: ../frontend
     volumes:
-      - frontend_build:/app/build   # ← сохраняем сборку в том
-    restart: always
+      - frontend_build:/app/result_build
+    restart: "no"
 
   nginx:
     container_name: foodgram-proxy

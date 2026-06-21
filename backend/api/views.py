@@ -41,8 +41,8 @@ from .permissions import IsAuthenticatedAuthorOrReadOnly
 User = get_user_model()
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
-    """Вьюсет для пользователей (чтение, подписки, аватар)."""
+class UserViewSet(viewsets.ModelViewSet):
+    """Вьюсет для пользователей (чтение, создание, подписки, аватар)."""
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -54,6 +54,31 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         context = super().get_serializer_context()
         context.update({'request': self.request})
         return context
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PublicUserCreateSerializer
+        return UserSerializer
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return (AllowAny(),)
+        return super().get_permissions()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+            },
+            status=status.HTTP_201_CREATED
+        )
 
     @action(detail=False, url_path='me', permission_classes=(IsAuthenticated,))
     def me(self, request):
@@ -99,6 +124,11 @@ class UserAvatarView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def put(self, request):
+        if not request.data or 'avatar' not in request.data:
+            return Response(
+                {'avatar': ['Обязательное поле.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = SetAvatarSerializer(
             request.user, data=request.data, partial=True
         )
@@ -133,11 +163,16 @@ class UserSubscribeView(APIView):
 
     def delete(self, request, pk):
         author = get_object_or_404(User, pk=pk)
-        request.user.follower.filter(author=author).delete()
+        deleted_count, _ = request.user.follower.filter(
+            author=author
+        ).delete()
+        if deleted_count == 0:
+            return Response(
+                {'detail': 'Вы не были подписаны на этого пользователя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-# ========== Публичная регистрация ==========
 
 class PublicUserCreateView(APIView):
     permission_classes = (AllowAny,)
@@ -152,8 +187,6 @@ class PublicUserCreateView(APIView):
         )
 
 
-# ========== Кастомный вход по email ==========
-
 class SimpleTokenLoginView(APIView):
     permission_classes = (AllowAny,)
 
@@ -165,8 +198,6 @@ class SimpleTokenLoginView(APIView):
         token_data = serializer.save()
         return Response(token_data)
 
-
-# ========== Базовый класс для Tag и Ingredient ==========
 
 class BaseReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
@@ -190,8 +221,6 @@ class IngredientViewSet(BaseReadOnlyViewSet):
         return queryset
 
 
-# ========== Рецепты ==========
-
 class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
     filter_backends = (DjangoFilterBackend,)
@@ -200,10 +229,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Recipe.objects.all()
         user = self.request.user
-        if user.is_authenticated:
-            queryset = queryset.with_favorite_flag(
-                user
-            ).with_shopping_cart_flag(user)
+        queryset = queryset.with_favorite_flag(
+            user
+        ).with_shopping_cart_flag(user)
         return queryset
 
     def get_permissions(self):
@@ -233,7 +261,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         output_serializer = RecipeSerializer(
-            serializer.instance, context={'request': request}
+            serializer.instance,
+            context=self.get_serializer_context()
         )
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -246,7 +275,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         output_serializer = RecipeSerializer(
-            instance, context={'request': request}
+            instance,
+            context=self.get_serializer_context()
         )
         return Response(output_serializer.data)
 
@@ -271,7 +301,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_201_CREATED
             )
         # DELETE
-        model.objects.filter(user=user, recipe=recipe).delete()
+        deleted_count, _ = model.objects.filter(
+            user=user, recipe=recipe
+        ).delete()
+        if deleted_count == 0:
+            return Response(
+                {'detail': 'Рецепт не был добавлен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
