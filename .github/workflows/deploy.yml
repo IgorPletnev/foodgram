@@ -24,14 +24,24 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
+          tags: igorpletnev/foodgram_backend:latest
 
       - name: Build and push frontend
         uses: docker/build-push-action@v4
         with:
           context: ./frontend
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_frontend:latest
+          tags: igorpletnev/foodgram_frontend:latest
+
+      - name: Copy data files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "data/,infra/nginx.conf,infra/docker-compose.prod.yml,docs/"
+          target: /home/${{ secrets.SERVER_USER }}/foodgram
+          strip_components: 0
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v0.1.5
@@ -41,8 +51,23 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/${{ secrets.SERVER_USER }}/foodgram/infra
-            docker-compose -f docker-compose.prod.yml down
-            docker-compose -f docker-compose.prod.yml pull
-            docker-compose -f docker-compose.prod.yml up -d
-            docker-compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
-            docker-compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            # Ждём, пока backend запустится
+            sleep 5
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+            # Загрузка ингредиентов
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py load_ingredients
+            # Создание тегов
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py shell -c "
+from recipes.models import Tag
+if not Tag.objects.exists():
+    Tag(name='Завтрак', slug='breakfast', color='#E26C2D').save()
+    Tag(name='Обед', slug='lunch', color='#49B64E').save()
+    Tag(name='Ужин', slug='dinner', color='#8775D2').save()
+    print('Tags created')
+else:
+    print('Tags already exist')
+"

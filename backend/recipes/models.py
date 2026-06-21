@@ -186,8 +186,6 @@ class RecipeIngredient(models.Model):
     amount = models.PositiveSmallIntegerField(
         verbose_name='Количество',
     )
-    amount = models.PositiveSmallIntegerField(
-    )
 
     class Meta:
         verbose_name = 'Ингредиент в рецепте'

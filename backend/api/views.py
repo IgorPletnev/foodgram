@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.http import FileResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.generic import RedirectView
 from django_filters.rest_framework import DjangoFilterBackend
@@ -352,11 +352,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
             _, name, unit
         ), amount in ingredients_dict.items()]
         content = '\n'.join(lines)
-        return FileResponse(
-            content.encode('utf-8'),
-            content_type='text/plain',
-            filename='shopping_list.txt'
+        response = HttpResponse(
+            content.encode('utf-8-sig'),
+            content_type='text/plain; charset=utf-8'
         )
+        response['Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        return response
 
 
 class ShortLinkRedirectView(RedirectView):

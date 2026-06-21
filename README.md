@@ -11,6 +11,10 @@
     <img src="https://img.shields.io/badge/Nginx-1.25-009639?logo=nginx" alt="Nginx">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   </p>
+  <p>
+    <strong>🔗 Проект в продакшене:</strong>
+    <a href="https://kittykaty.ddns.net">https://kittykaty.ddns.net</a>
+  </p>
 </div>
 
 ---
@@ -30,7 +34,7 @@
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Быстрый старт (локальная разработка)
 
 ### Требования
 
@@ -196,7 +200,8 @@ foodgram/
 │   ├── src/
 │   └── Dockerfile
 ├── infra/                      # Инфраструктура
-│   ├── docker-compose.yml
+│   ├── docker-compose.yml      # Локальная разработка (сборка из исходников)
+│   ├── docker-compose.prod.yml # Продакшен (образы с Docker Hub)
 │   ├── nginx.conf
 │   └── .env.example
 ├── docs/                       # Документация
@@ -213,44 +218,81 @@ foodgram/
 
 ## ⚙️ Переменные окружения
 
-Создайте файл `infra/.env`:
+Создайте файл `infra/.env` (скопируйте из `infra/.env.example`):
 
 ```env
 # PostgreSQL
 POSTGRES_DB=foodgram
 POSTGRES_USER=foodgram_user
-POSTGRES_PASSWORD=your_password
+POSTGRES_PASSWORD=your_strong_password_here
 DB_HOST=db
 DB_PORT=5432
 
 # Django
-SECRET_KEY=django-insecure-your-secret-key
+SECRET_KEY=django-insecure-your-secret-key-here
 DEBUG=False
-ALLOWED_HOSTS=localhost,127.0.0.1,your-domain.com
+ALLOWED_HOSTS=localhost 127.0.0.1 81.26.184.67 kittykaty.ddns.net
+CSRF_TRUSTED_ORIGINS=http://localhost:8000 http://81.26.184.67 https://kittykaty.ddns.net
+
+# Frontend URL (для short-link редиректа)
+FRONTEND_URL=https://kittykaty.ddns.net
 ```
 
 ---
 
 ## 🌐 Деплой на сервер
 
-В репозитории настроен GitHub Actions (`.github/workflows/deploy.yml`):
+### Подготовка сервера
 
-1. **Тестирование** — запуск Postman-коллекции через newman
-2. **Сборка** — Docker-образы backend и frontend
-3. **Публикация** — образы на Docker Hub
-4. **Деплой** — автоматический запуск на сервере через SSH
+На сервере должны быть установлены:
+- Docker и Docker Compose
+- Создана директория `/home/<user>/foodgram/`
 
-Для работы CI/CD добавьте в Secrets репозитория:
+### GitHub Secrets
+
+Для работы CI/CD добавьте в Secrets репозитория (Settings → Secrets and variables → Actions):
 
 | Secret | Описание |
 |--------|----------|
 | `DOCKER_USERNAME` | Логин Docker Hub |
-| `DOCKER_PASSWORD` | Пароль Docker Hub |
-| `HOST` | IP сервера |
-| `USER` | Пользователь SSH |
-| `SSH_KEY` | Приватный SSH-ключ |
-| `TELEGRAM_TO` | ID чата для уведомлений |
-| `TELEGRAM_TOKEN` | Токен Telegram-бота |
+| `DOCKER_PASSWORD` | Пароль или токен Docker Hub |
+| `SERVER_HOST` | IP-адрес сервера |
+| `SERVER_USER` | Имя пользователя для SSH |
+| `SSH_PRIVATE_KEY` | Приватный SSH-ключ (без пароля) |
+
+### Процесс деплоя
+
+При пуше в ветку `main` GitHub Actions автоматически:
+
+1. Собирает Docker-образы backend и frontend
+2. Пушит их на Docker Hub
+3. Копирует на сервер: `data/`, `infra/.env`, `infra/nginx.conf`, `infra/docker-compose.prod.yml`, `docs/`
+4. На сервере: пуллит образы, запускает контейнеры, выполняет миграции, загружает ингредиенты и создаёт теги
+
+### Ручной деплой
+
+```bash
+# 1. Соберите и запушьте образы
+docker build -t igorpletnev/foodgram_backend:latest ./backend
+docker build -t igorpletnev/foodgram_frontend:latest ./frontend
+docker push igorpletnev/foodgram_backend:latest
+docker push igorpletnev/foodgram_frontend:latest
+
+# 2. Скопируйте файлы на сервер
+scp -r data/ user@server:/home/user/foodgram/
+scp infra/.env user@server:/home/user/foodgram/infra/
+scp infra/nginx.conf user@server:/home/user/foodgram/infra/
+scp infra/docker-compose.prod.yml user@server:/home/user/foodgram/infra/
+
+# 3. Подключитесь к серверу и запустите
+ssh user@server
+cd /home/user/foodgram/infra
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose -f docker-compose.prod.yml exec backend python manage.py load_ingredients
+```
 
 ---
 
