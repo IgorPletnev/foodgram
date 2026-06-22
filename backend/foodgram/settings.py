@@ -132,6 +132,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://81.26.184.67',
     'https://julik.ddns.net',
+    'http://julik.ddns.net',
 ]
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
