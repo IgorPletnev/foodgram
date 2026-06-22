@@ -13,7 +13,7 @@
   </p>
   <p>
     <strong>🔗 Проект в продакшене:</strong>
-    <a href="https://kittykaty.ddns.net">https://kittykaty.ddns.net</a>
+    <a href="https://julik.ddns.net">https://julik.ddns.net</a>
   </p>
 </div>
 
@@ -231,11 +231,11 @@ DB_PORT=5432
 # Django
 SECRET_KEY=django-insecure-your-secret-key-here
 DEBUG=False
-ALLOWED_HOSTS=localhost 127.0.0.1 81.26.184.67 kittykaty.ddns.net
-CSRF_TRUSTED_ORIGINS=http://localhost:8000 http://81.26.184.67 https://kittykaty.ddns.net
+ALLOWED_HOSTS=localhost 127.0.0.1 81.26.184.67 julik.ddns.net
+CSRF_TRUSTED_ORIGINS=http://localhost:8000 http://81.26.184.67 https://julik.ddns.net
 
 # Frontend URL (для short-link редиректа)
-FRONTEND_URL=https://kittykaty.ddns.net
+FRONTEND_URL=https://julik.ddns.net
 ```
 
 ---
