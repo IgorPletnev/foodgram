@@ -58,3 +58,4 @@ class Command(BaseCommand):
                 f'(всего в файле: {total_count})'
             )
         )
+

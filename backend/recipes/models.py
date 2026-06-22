@@ -1,7 +1,6 @@
 import secrets
 
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator
 from django.db import models
 
 from .querysets import RecipeQuerySet, ShoppingCartQuerySet, FavoriteQuerySet
@@ -169,7 +168,8 @@ class Recipe(models.Model):
             slug = secrets.token_urlsafe(length)[:length]
             if not Recipe.objects.filter(short_link_slug=slug).exists():
                 return slug
-            
+
+
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(
         Recipe,
@@ -199,6 +199,7 @@ class RecipeIngredient(models.Model):
 
     def __str__(self):
         return f'{self.ingredient.name} - {self.amount}'
+
 
 class Subscription(models.Model):
     user = models.ForeignKey(

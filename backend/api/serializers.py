@@ -412,6 +412,7 @@ class SimpleTokenLoginSerializer(serializers.Serializer):
         token, _ = Token.objects.get_or_create(user=user)
         return {'auth_token': token.key}
 
+
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
@@ -436,6 +437,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
                 message='Рецепт уже в списке покупок'
             ),
         )
+
 
 class PasswordChangeSerializer(serializers.Serializer):
     current_password = serializers.CharField()

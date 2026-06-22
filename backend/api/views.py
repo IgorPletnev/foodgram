@@ -356,7 +356,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
             content.encode('utf-8-sig'),
             content_type='text/plain; charset=utf-8'
         )
-        response['Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_list.txt"'
+        )
         return response
 
 
@@ -364,3 +366,4 @@ class ShortLinkRedirectView(RedirectView):
     def get_redirect_url(self, *args, **kwargs):
         slug = kwargs.get('slug')
         return f"{settings.FRONTEND_URL}/recipes/{slug}"
+
