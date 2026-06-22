@@ -22,4 +22,3 @@ class User(AbstractUser):
             self.avatar.delete(save=False)
         self.avatar = None
         self.save(update_fields=('avatar',))
-
