@@ -41,7 +41,7 @@ class ShoppingCartQuerySet(models.QuerySet):
 
     def get_ingredients_summary(self):
         """Агрегирует ингредиенты из корзины пользователя одним запросом."""
-        from django.db.models import Sum, F
+        from django.db.models import Sum
 
         RecipeIngredient = apps.get_model('recipes', 'RecipeIngredient')
         cart_items = self.values_list('recipe_id', flat=True)
@@ -49,16 +49,20 @@ class ShoppingCartQuerySet(models.QuerySet):
             RecipeIngredient.objects
             .filter(recipe_id__in=cart_items)
             .values(
-                ingredient_id=F('ingredient_id'),
-                name=F('ingredient__name'),
-                unit=F('ingredient__measurement_unit'),
+                'ingredient_id',
+                'ingredient__name',
+                'ingredient__measurement_unit',
             )
             .annotate(total=Sum('amount'))
             .order_by('ingredient_id')
         )
         result = {}
         for item in ingredients:
-            key = (item['ingredient_id'], item['name'], item['unit'])
+            key = (
+                item['ingredient_id'],
+                item['ingredient__name'],
+                item['ingredient__measurement_unit'],
+            )
             result[key] = item['total']
         return result
 
