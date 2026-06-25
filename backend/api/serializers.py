@@ -226,7 +226,15 @@ class IngredientItemSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1)
 
     def validate_id(self, value):
-        if not Ingredient.objects.filter(id=value).exists():
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"[DEBUG IngredientItemSerializer] validate_id called with value={value} (type={type(value).__name__})")
+        exists = Ingredient.objects.filter(id=value).exists()
+        logger.debug(f"[DEBUG IngredientItemSerializer] Ingredient with id={value} exists={exists}")
+        if not exists:
+            # Попробуем найти ближайшие id для контекста
+            all_ids = list(Ingredient.objects.values_list('id', flat=True)[:10])
+            logger.debug(f"[DEBUG IngredientItemSerializer] First 10 ingredient IDs in DB: {all_ids}")
             raise serializers.ValidationError(
                 f'Ингредиент с id {value} не существует'
             )
@@ -303,6 +311,16 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         recipe.recipe_ingredients.all().delete()
 
     def _save_ingredients(self, recipe, ingredients_data):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"[DEBUG _save_ingredients] recipe.id={recipe.id}, recipe.name='{recipe.name}'")
+        logger.debug(f"[DEBUG _save_ingredients] ingredients_data={ingredients_data}")
+        for item in ingredients_data:
+            try:
+                ing = Ingredient.objects.get(id=item['id'])
+                logger.debug(f"[DEBUG _save_ingredients] ingredient id={item['id']} -> '{ing.name}' ({ing.measurement_unit}), amount={item['amount']}")
+            except Ingredient.DoesNotExist:
+                logger.error(f"[DEBUG _save_ingredients] INGREDIENT WITH id={item['id']} DOES NOT EXIST!")
         RecipeIngredient.objects.bulk_create([
             RecipeIngredient(
                 recipe=recipe,
@@ -313,22 +331,38 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         ])
 
     def create(self, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.create] validated_data keys: {list(validated_data.keys())}")
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.create] ingredients in validated_data: {validated_data.get('ingredients', 'NOT FOUND')}")
         tags = validated_data.pop('tags')
         ingredients_data = validated_data.pop('ingredients')
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.create] ingredients_data after pop: {ingredients_data}")
         recipe = super().create(validated_data)
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.create] recipe created: id={recipe.id}, name='{recipe.name}'")
         recipe.tags.set(tags)
         self._save_ingredients(recipe, ingredients_data)
+        # Проверим, что сохранилось
+        saved = list(RecipeIngredient.objects.filter(recipe=recipe).values_list('ingredient_id', 'amount'))
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.create] saved RecipeIngredients: {saved}")
         return recipe
 
     def update(self, instance, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.update] instance.id={instance.id}, ingredients_data in validated_data: {validated_data.get('ingredients', 'NOT FOUND')}")
         tags = validated_data.pop('tags', None)
         ingredients_data = validated_data.pop('ingredients', None)
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.update] ingredients_data after pop: {ingredients_data}")
         instance = super().update(instance, validated_data)
         if tags is not None:
             instance.tags.set(tags)
         if ingredients_data is not None:
             self._clear_ingredients(instance)
             self._save_ingredients(instance, ingredients_data)
+        # Проверим, что сохранилось
+        saved = list(RecipeIngredient.objects.filter(recipe=instance).values_list('ingredient_id', 'amount'))
+        logger.debug(f"[DEBUG RecipeCreateUpdateSerializer.update] saved RecipeIngredients: {saved}")
         return instance
 
 

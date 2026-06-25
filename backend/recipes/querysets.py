@@ -40,15 +40,26 @@ class ShoppingCartQuerySet(models.QuerySet):
         return self.filter(user=user).select_related('recipe')
 
     def get_ingredients_summary(self):
-        ingredients = {}
-        for cart_item in self.select_related('recipe'):
-            for ri in cart_item.recipe.recipe_ingredients.select_related(
-                'ingredient'
-            ):
-                ing = ri.ingredient
-                key = (ing.id, ing.name, ing.measurement_unit)
-                ingredients[key] = ingredients.get(key, 0) + ri.amount
-        return ingredients
+        """Агрегирует ингредиенты из корзины пользователя одним запросом."""
+        from django.db.models import Sum, F
+
+        RecipeIngredient = apps.get_model('recipes', 'RecipeIngredient')
+        cart_items = self.values_list('recipe_id', flat=True)
+        ingredients = (
+            RecipeIngredient.objects
+            .filter(recipe_id__in=cart_items)
+            .values(
+                ingredient_id=F('ingredient_id'),
+                name=F('ingredient__name'),
+                unit=F('ingredient__measurement_unit'),
+            )
+            .annotate(total=Sum('amount'))
+            .values_list('ingredient_id', 'name', 'unit', 'total')
+        )
+        result = {}
+        for ing_id, name, unit, total in ingredients:
+            result[(ing_id, name, unit)] = total
+        return result
 
 
 class FavoriteQuerySet(models.QuerySet):

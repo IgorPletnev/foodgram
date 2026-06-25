@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import models
 from django.utils.safestring import mark_safe
 
 from .models import (
@@ -21,9 +22,18 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'measurement_unit')
-    search_fields = ('name',)
+    list_display = ('id', 'name', 'measurement_unit', 'recipe_count')
+    search_fields = ('name', 'measurement_unit')
     list_filter = ('measurement_unit',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            recipe_count=models.Count('recipe_ingredients')
+        )
+
+    @admin.display(description='Используется в рецептах')
+    def recipe_count(self, obj):
+        return obj.recipe_count
 
 
 class RecipeIngredientInline(admin.TabularInline):

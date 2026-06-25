@@ -365,4 +365,5 @@ class RecipeViewSet(viewsets.ModelViewSet):
 class ShortLinkRedirectView(RedirectView):
     def get_redirect_url(self, *args, **kwargs):
         slug = kwargs.get('slug')
-        return f"{settings.FRONTEND_URL}/recipes/{slug}"
+        recipe = get_object_or_404(Recipe, short_link_slug=slug)
+        return f"{settings.FRONTEND_URL}/recipes/{recipe.id}"

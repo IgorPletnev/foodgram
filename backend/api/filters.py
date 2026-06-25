@@ -10,6 +10,7 @@ class RecipeFilter(filters.FilterSet):
     author = filters.NumberFilter(field_name='author__id')
     is_favorited = filters.BooleanFilter(method='filter_favorited')
     is_in_shopping_cart = filters.BooleanFilter(method='filter_in_cart')
+    ingredients = filters.CharFilter(method='filter_ingredients')
 
     def filter_tags(self, queryset, name, value):
         tags_list = self.request.query_params.getlist('tags')
@@ -37,6 +38,17 @@ class RecipeFilter(filters.FilterSet):
             ).distinct()
         return queryset
 
+    def filter_ingredients(self, queryset, name, value):
+        """Фильтр рецептов по названию ингредиента (?ingredients=...)."""
+        if not value:
+            return queryset
+        return queryset.filter(
+            recipe_ingredients__ingredient__name__icontains=value
+        ).distinct()
+
     class Meta:
         model = Recipe
-        fields = ('tags', 'author', 'is_favorited', 'is_in_shopping_cart')
+        fields = (
+            'tags', 'author', 'is_favorited',
+            'is_in_shopping_cart', 'ingredients',
+        )

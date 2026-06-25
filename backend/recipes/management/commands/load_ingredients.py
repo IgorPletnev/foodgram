@@ -33,8 +33,9 @@ class Command(BaseCommand):
         with open(file_path, 'r', encoding='utf-8') as json_file:
             ingredients_data = json.load(json_file)
 
-        created_count = 0
         total_count = len(ingredients_data)
+        ingredients_to_create = []
+        skipped = 0
         for ingredient_item in ingredients_data:
             name = ingredient_item.get('name')
             unit = ingredient_item.get('measurement_unit')
@@ -44,17 +45,20 @@ class Command(BaseCommand):
                         f'Пропущен некорректный элемент: {ingredient_item}'
                     )
                 )
+                skipped += 1
                 continue
-            ingredient, created = Ingredient.objects.get_or_create(
-                name=name,
-                measurement_unit=unit
+            ingredients_to_create.append(
+                Ingredient(name=name, measurement_unit=unit)
             )
-            if created:
-                created_count += 1
 
+        created_count = Ingredient.objects.bulk_create(
+            ingredients_to_create,
+            ignore_conflicts=True,
+        )
         self.stdout.write(
             self.style.SUCCESS(
-                f'Загружено ингредиентов: {created_count} '
-                f'(всего в файле: {total_count})'
+                f'Загружено ингредиентов: {len(created_count)} '
+                f'(всего в файле: {total_count}, '
+                f'пропущено некорректных: {skipped})'
             )
         )
