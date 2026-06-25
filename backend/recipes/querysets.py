@@ -54,11 +54,12 @@ class ShoppingCartQuerySet(models.QuerySet):
                 unit=F('ingredient__measurement_unit'),
             )
             .annotate(total=Sum('amount'))
-            .values_list('ingredient_id', 'name', 'unit', 'total')
+            .order_by('ingredient_id')
         )
         result = {}
-        for ing_id, name, unit, total in ingredients:
-            result[(ing_id, name, unit)] = total
+        for item in ingredients:
+            key = (item['ingredient_id'], item['name'], item['unit'])
+            result[key] = item['total']
         return result
 
 
