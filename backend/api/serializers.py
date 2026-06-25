@@ -435,7 +435,7 @@ class SimpleTokenLoginSerializer(serializers.Serializer):
         except User.DoesNotExist as err:
             raise ValidationError('Неверные учетные данные') from err
 
-        user = authenticate(username=user.username, password=password)
+        user = authenticate(username=email, password=password)
         if not user:
             raise ValidationError('Неверные учетные данные')
         self.context['user'] = user
