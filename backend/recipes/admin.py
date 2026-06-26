@@ -46,7 +46,15 @@ class RecipeIngredientInline(admin.TabularInline):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'author', 'favorites_count', 'display_image')
+    list_display = (
+        'name',
+        'author',
+        'cooking_time',
+        'display_tags',
+        'display_ingredients',
+        'favorites_count',
+        'display_image',
+    )
     search_fields = ('name', 'author__username', 'author__email')
     list_filter = ('tags',)
     filter_horizontal = ('tags',)
@@ -74,6 +82,24 @@ class RecipeAdmin(admin.ModelAdmin):
     def favorites_count(self, recipe):
         return recipe.favorites.count()
     favorites_count.short_description = 'Число добавлений в избранное'
+
+    @admin.display(description='Теги')
+    def display_tags(self, recipe):
+        tags = recipe.tags.all()
+        if tags:
+            return ', '.join(tag.name for tag in tags)
+        return '—'
+
+    @admin.display(description='Ингредиенты')
+    def display_ingredients(self, recipe):
+        ingredients = recipe.recipe_ingredients.select_related('ingredient')
+        if ingredients:
+            return ', '.join(
+                f'{item.ingredient.name} ({item.amount} '
+                f'{item.ingredient.measurement_unit})'
+                for item in ingredients
+            )
+        return '—'
 
     def display_image(self, recipe):
         if recipe.image:

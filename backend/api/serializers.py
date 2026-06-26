@@ -119,6 +119,15 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_username(self, value):
+        import re
+        if not re.match(r'^[\w.@+-]+\Z', value):
+            raise serializers.ValidationError(
+                'Имя пользователя может содержать только буквы, '
+                'цифры и символы . _ @ + -'
+            )
+        return value
+
     def create(self, validated_data):
         user = User(**validated_data)
         user.set_password(validated_data['password'])

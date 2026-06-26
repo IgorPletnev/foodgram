@@ -11,11 +11,11 @@ from .views import (
     UserSubscribeView,
 )
 
-router_v1 = DefaultRouter()
-router_v1.register('users', UserViewSet, basename='user')
-router_v1.register('tags', TagViewSet, basename='tag')
-router_v1.register('ingredients', IngredientViewSet, basename='ingredient')
-router_v1.register('recipes', RecipeViewSet, basename='recipe')
+router = DefaultRouter()
+router.register('users', UserViewSet, basename='user')
+router.register('tags', TagViewSet, basename='tag')
+router.register('ingredients', IngredientViewSet, basename='ingredient')
+router.register('recipes', RecipeViewSet, basename='recipe')
 
 urlpatterns = [
     path('users/me/avatar/', UserAvatarView.as_view(), name='user-avatar'),
@@ -24,5 +24,5 @@ urlpatterns = [
         UserSubscribeView.as_view(),
         name='user-unsubscribe',
     ),
-    path('', include(router_v1.urls)),
+    path('', include(router.urls)),
 ]

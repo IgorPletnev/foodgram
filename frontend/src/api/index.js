@@ -10,7 +10,13 @@ class Api {
         return resolve(res);
       }
       const func = res.status < 400 ? resolve : reject;
-      res.json().then((data) => func(data));
+      res
+        .json()
+        .then((data) => func(data))
+        .catch(() => {
+          // Если ответ не JSON (например, HTML при 500 ошибке)
+          func({ detail: `HTTP ${res.status} ${res.statusText}` });
+        });
     });
   }
 

@@ -1,15 +1,27 @@
+import re
+
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
 from django.db import models
 
 USERNAME_MAX_LENGTH = 150
+
+
+def validate_username(value):
+    """Проверяет, что username содержит только разрешённые символы."""
+    if not re.match(r'^[\w.@+-]+\Z', value):
+        raise ValidationError(
+            'Имя пользователя может содержать только буквы, '
+            'цифры и символы . _ @ + -'
+        )
 
 
 class User(AbstractUser):
     username = models.CharField(
         max_length=USERNAME_MAX_LENGTH,
         unique=True,
-        validators=[UnicodeUsernameValidator()],
+        validators=[UnicodeUsernameValidator(), validate_username],
         verbose_name='Имя пользователя',
     )
     email = models.EmailField(

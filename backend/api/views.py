@@ -18,7 +18,7 @@ from recipes.models import (
     Favorite,
     ShoppingCart,
 )
-from .filters import RecipeFilter
+from .filters import RecipeFilter, IngredientFilter
 from .serializers import (
     TagSerializer,
     IngredientSerializer,
@@ -174,19 +174,6 @@ class UserSubscribeView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class PublicUserCreateView(APIView):
-    permission_classes = (AllowAny,)
-
-    def post(self, request):
-        serializer = PublicUserCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(
-            UserSerializer(user, context={'request': request}).data,
-            status=status.HTTP_201_CREATED
-        )
-
-
 class SimpleTokenLoginView(APIView):
     permission_classes = (AllowAny,)
 
@@ -211,14 +198,9 @@ class TagViewSet(BaseReadOnlyViewSet):
 
 class IngredientViewSet(BaseReadOnlyViewSet):
     serializer_class = IngredientSerializer
-    queryset = Ingredient.objects.none()
-
-    def get_queryset(self):
-        queryset = Ingredient.objects.all()
-        name = self.request.query_params.get('name')
-        if name:
-            queryset = queryset.filter(name__istartswith=name)
-        return queryset
+    queryset = Ingredient.objects.all()
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientFilter
 
 
 class RecipeViewSet(viewsets.ModelViewSet):

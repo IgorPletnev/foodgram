@@ -12,6 +12,8 @@ INGREDIENT_NAME_MAX_LENGTH = 128
 INGREDIENT_UNIT_MAX_LENGTH = 64
 RECIPE_NAME_MAX_LENGTH = 256
 SHORT_LINK_SLUG_MAX_LENGTH = 10
+MIN_COOKING_TIME = 1
+MIN_AMOUNT = 1
 
 User = get_user_model()
 
@@ -148,7 +150,7 @@ class Recipe(models.Model):
     )
     cooking_time = models.PositiveSmallIntegerField(
         verbose_name='Время приготовления (мин)',
-        validators=[MinValueValidator(1)],
+        validators=[MinValueValidator(MIN_COOKING_TIME)],
     )
     pub_date = models.DateTimeField(
         auto_now_add=True,
@@ -200,7 +202,7 @@ class RecipeIngredient(models.Model):
     )
     amount = models.PositiveSmallIntegerField(
         verbose_name='Количество',
-        validators=[MinValueValidator(1)],
+        validators=[MinValueValidator(MIN_AMOUNT)],
     )
 
     class Meta:
